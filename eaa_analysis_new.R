@@ -156,6 +156,25 @@ p.adjust(p,
 
 ##### Investigate risky choices #####
  
+# violin plot
+ggplot(eaatb, aes(x = cond, y = r, fill = is_post)) + 
+  # geom_violin(size=1) + # trimed
+  geom_violin(trim=FALSE, size=1) + # not trimed
+  geom_dotplot(binaxis='y', binwidth = 0.035, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray 90", "gray55")) +
+  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  # geom_boxplot(width = 0.1) + # add box plot
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  scale_y_continuous(limits=c(-0.5, 1.5), breaks = c(-0.5, 0.0, 0.5, 1.0, 1.5)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 16, color = "black")) +
+  ggtitle("Risky trials choice proportion") + xlab("") + ylab("Choice Proportion") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
+# histogram
 ggplot(eaatb[eaatb$cond == 0,], aes(x = r, fill = is_post)) +
   geom_histogram(bins = 20, color = "black", alpha = 0.5) +
   scale_fill_manual(values = c("gray 100", "gray20"))
@@ -170,6 +189,7 @@ ggplot(eaatb[eaatb$cond == 2,], aes(x = r, fill = is_post)) +
 
 ##### Investigate ambigous choices #####
 
+# histogram
 ggplot(eaatb[eaatb$cond == 0,], aes(x = a, fill = is_post)) +
   geom_histogram(bins = 30, color = "black", alpha = 0.7, position = "identity") +
   scale_fill_grey(start = 0.3, end = 1) +
@@ -711,35 +731,149 @@ ggplot(eaatb, aes(x = cond, y = a74_a24, fill = is_post)) +
   theme(axis.title.y=element_text(size = 14)) +
   theme(axis.title = element_text(size = 16))
 
+# test
+# ez anova
+ac_anova = ezANOVA(data=eaatb, 
+                   dv = a70_a24,
+                   wid = .(id),
+                   within = .(is_post),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+
 ##### Risk and ambiguity attitudes correlation #####
+
+# all subjects, pre intervention
+ggplot(eaatbpre, aes(x=alpha_t, y=beta_t)) + 
+  geom_point() +
+  theme_classic()
+
+ggplot(eaatbpre[eaatbpre$beta_t>-1.5, ], aes(x=alpha_t, y=beta_t)) + 
+  geom_point() +
+  theme_classic()
+
+cor.test(eaatbpre$alpha_t,
+         eaatbpre$beta_t,
+         method = c("spearman"))
+cor.test(eaatbpre$alpha_t[eaatbpre$beta_t>-1.5], 
+         eaatbpre$beta_t[eaatbpre$beta_t>-1.5],
+         method = c("spearman"))
+
+#  AC and NC together, pre intervention
+
 ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=alpha_t, y=beta_t)) + 
   geom_point() +
   theme_classic()
 
-cor.test(eaatbpre$alpha_t[!eaatbpost$cond==0], eaatbpre$beta_t[!eaatbpost$cond==0],
-         method = c("pearson", "kendall", "spearman"))
+ggplot(eaatbpre[!eaatbpre$cond==0 & eaatbpre$beta_t>-4, ], aes(x=alpha_t, y=beta_t)) + 
+  geom_point() +
+  theme_classic()
 
+cor.test(eaatbpre$alpha_t[!eaatbpost$cond==0], eaatbpre$beta_t[!eaatbpost$cond==0],
+         method = c("spearman"))
+cor.test(eaatbpre$alpha_t[!eaatbpre$cond==0 & eaatbpre$beta_t>-4], 
+         eaatbpre$beta_t[!eaatbpre$cond==0 & eaatbpre$beta_t>-4],
+         method = c("spearman"))
+
+# AC and NC , post intervention
 ggplot(eaatbpost[!eaatbpost$cond==0, ], aes(x=alpha_t, y=beta_t)) + 
   geom_point() +
   theme_classic()
 
+ggplot(eaatbpost[!eaatbpost$cond==0 & eaatbpost$beta_t>-4, ], aes(x=alpha_t, y=beta_t)) + 
+  geom_point() +
+  theme_classic()
+
 cor.test(eaatbpost$alpha_t[!eaatbpost$cond==0], eaatbpost$beta_t[!eaatbpost$cond==0], 
-         method = c("pearson", "kendall", "spearman"))
+         method = c("spearman"))
+cor.test(eaatbpost$alpha_t[!eaatbpost$cond==0 & eaatbpost$beta_t>-4],
+         eaatbpost$beta_t[!eaatbpost$cond==0 & eaatbpost$beta_t>-4], 
+         method = c("spearman"))
 
+# comparing pre and post intervention risk and ambiguity correlation
+preACNC = eaatbpre[!eaatb$cond==0,]
+postACNC = eaatbpost[!eaatb$cond==0,]
+postAC = eaatb[!eaatb$cond==0,]
+postNC = eaatb[!eaatb$cond==0,]
 
+cocordata <- data.frame("pre_beta_t"=preACNC$beta_t, "pre_alpha_t"=preACNC$alpha_t,
+                        "post_beta_t"=postACNC$beta_t, "post_alpha_t"=postACNC$alpha_t)
+
+cocordata$pre_beta_t[cocordata$pre_beta_t < -4] <- NaN
+cocordata$pre_alpha_t[cocordata$pre_beta_t < -4] <- NaN
+
+cocordata$post_beta_t[cocordata$post_beta_t < -4] <- NaN
+cocordata$post_alpha_t[cocordata$post_beta_t < -4] <- NaN
+
+cocor(~pre_beta_t + pre_alpha_t | post_beta_t + post_alpha_t, cocordata,
+      alternative ="two.sided", test="all",
+      alpha = 0.05, return.htest = FALSE)
+
+# correlation between attitudes change
 ggplot(eaatbpost[!eaatbpost$cond==0, ], aes(x=alpha_t_increase, y=beta_t_increase)) + 
   geom_point() +
   theme_classic()
 
-cor.test(eaatbpost$alpha_t_increase[!eaatbpost$cond==0], eaatbpost$beta_t_increase[!eaatbpost$cond==0], 
-         method = c("pearson", "kendall", "spearman"))
+ggplot(eaatbpost[!eaatbpost$cond==0 & eaatbpost$beta_t_increase<4, ], aes(x=alpha_t_increase, y=beta_t_increase)) + 
+  geom_point() +
+  theme_classic()
+
+cor.test(eaatbpost$alpha_t_increase[!eaatbpost$cond==0],
+         eaatbpost$beta_t_increase[!eaatbpost$cond==0], 
+         method = c("spearman"))
+
+cor.test(eaatbpost$alpha_t_increase[!eaatbpost$cond==0 & eaatbpost$beta_t_increase<4],
+         eaatbpost$beta_t_increase[!eaatbpost$cond==0 & eaatbpost$beta_t_increase<4], 
+         method = c("spearman"))
+
+##### EP and change correlation #####
+ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=ep_score, y=beta_t)) + 
+  geom_point() +
+  theme_classic()
+
+cor.test(eaatbpre$alpha_t[!eaatbpost$cond==0], eaatbpre$beta_t[!eaatbpost$cond==0],
+         method = c("spearman"))
+
+ggplot(eaatbpre[eaatbpre$cond==1, ], aes(x=ep_score, y=beta_t_increase)) + 
+  geom_point() +
+  theme_classic()
+
+cor.test(eaatbpre$ep_score[eaatbpost$cond==1],
+         eaatbpre$beta_t_increase[eaatbpost$cond==1],
+         method = c("spearman"))
+
+ggplot(eaatbpre[eaatbpre$cond==2, ], aes(x=ep_score, y=beta_t_increase)) + 
+  geom_point() +
+  theme_classic()
+
+ggplot(eaatbpre[eaatbpre$cond==2 & eaatbpre$beta_t_increase<4, ], aes(x=ep_score, y=beta_t_increase)) + 
+  geom_point() +
+  theme_classic()
+
+cor.test(eaatbpre$ep_score[eaatbppre$cond==2],
+         eaatbpre$beta_t_increase[eaatbpre$cond==2],
+         method = c("spearman"))
+
+cor.test(eaatbpre$ep_score[eaatbpre$cond==2 & eaatbpre$beta_t_increase<4],
+         eaatbpre$beta_t_increase[eaatbpre$cond==2 & eaatbpre$beta_t_increase<4],
+         method = c("spearman"))
 
 ##### ANOVA by linear model and multiple comparison #####
 
 # construct model
 model1 <- lme(a50_a24 ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
+model1 <- lme(a74_a24 ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
 model1 <- lme(beta_t ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
-model1 <- lmer(a50_a24 ~ cond*is_post + (1|id), na.action=na.omit, data = eaatb )
+model1 <- lme(alpha_t ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
+# model1 <- lmer(a50_a24 ~ cond*is_post + (1|id), na.action=na.omit, data = eaatb )
+# model1 <- lmer(a50_a24 ~ cond*is_post + (1|id), na.action=na.omit, data = eaatb )
+
+model1 <- lme(a_r50 ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
+model1 <- lme(r ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
+model1 <- lme(alpha_risk_t ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
 
 anova(model1)
 
@@ -756,6 +890,8 @@ contrast(model1.emm, method="pairwise", adjust = "bonferroni")
 contrast(model1.emm, method="pairwise")
 
 ic_st <- contrast(model1.emm, interaction=c("consec", "consec"), adjust = "Tukey")
+ic_st <- contrast(model1.emm, interaction=c("consec", "consec"))
+ic_st
 coef(ic_st) # see the constrast
 
 # interaction contrast - contrast of contrast, ref: https://cran.r-project.org/web/packages/emmeans/vignettes/interactions.html
@@ -768,14 +904,17 @@ contrast(model1.emm, simple= "cond")
 pairs(model1.emm, simple = "cond", adjust="bonferroni")
 pairs(model1.emm, simple = "cond")
 pairs(model1.emm, simple = "is_post", adjust="bonferroni")
-pairs(model1.emm, simple = "is_post")
 pairs(model1.emm, simple = "each")
+contrast(model1.emm, simple = "each")
 
 summary(glht(model1, emm(pairwise ~ cond:is_post)))
 
 model2 <- lme(a50_a24 ~ cond*is_post, random = ~1|id, na.action=na.omit, data = eaatb)
 
 summary(aov(a50_a24 ~ cond*is_post + Error(id), data = eaatb))
+
+# return p value by t stats
+pt(-abs(-4.546),df=116)
 
 # Anova(model1, type=c("III"))
 # Anova(model1, test.statistics=c("F"))
