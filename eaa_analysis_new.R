@@ -911,6 +911,7 @@ summary(glht(model1, emm(pairwise ~ cond:is_post)))
 
 model2 <- lme(a50_a24 ~ cond*is_post, random = ~1|id, na.action=na.omit, data = eaatb)
 
+# simple anova
 summary(aov(a50_a24 ~ cond*is_post + Error(id), data = eaatb))
 
 # return p value by t stats
@@ -925,6 +926,7 @@ anova(model2)
 
 summary(model1)
 
+# multiple comparison
 eaatb$inter <- interaction(eaatb$cond, eaatb$is_post, drop=T)
 glht(model1, linfct = mcp(cond="Tukey", is_post = "Tukey")) # all-pair comparisons
 glht(model1, linfct = mcp(inter = "Tukey")) # all-pair comparisons
