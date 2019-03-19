@@ -5,6 +5,9 @@ library("ggplot2")
 # installed.packages("car")
 library('car')
 
+# install.packages("emmeans")
+library(emmeans)
+
 # install.packages('psych')
 library(psych)
 
@@ -90,7 +93,7 @@ eaatb <- eaatb[!is.element(eaatb$id, exclude_riskAmbig),]
 eaatbpre = eaatb[eaatb$is_post == 0,]
 eaatbpost = eaatb[eaatb$is_post == 1,]
 
-# Subjects with extreme values
+# Find subjects with extreme values
 id_out_alpha_pre = eaatbpre[eaatbpre$alpha_risk < 0.1070 | eaatbpre$alpha_risk > 2.0987,]$id
 id_out_alpha_post = eaatbpost[eaatbpost$alpha_risk < 0.1070 | eaatbpost$alpha_risk > 2.0987,]$id
 id_out_alpha = unique(c(id_out_alpha_pre, id_out_alpha_post))
@@ -656,6 +659,58 @@ ac_anova
 TukeyHSD(ac_anova$aov)
 
 
+##### Investigate difference between choice proportion #####
+
+# violin plot, ambiguity 50 and 24 difference 
+ggplot(eaatb, aes(x = cond, y = a50_a24, fill = is_post)) + 
+  # geom_violin(size=1) + # trimed
+  geom_violin(trim=FALSE, size=1) + # not trimed
+  geom_dotplot(binaxis='y', binwidth = 0.02, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray 90", "gray55")) +
+  # geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
+  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  scale_y_continuous(limits=c(-1.0, 0.5), breaks = c(-1.0,-0.5, 0.0, 0.5)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 16, color = "black")) +
+  ggtitle("Difference between choice proportion ambiguity 50 and 24") + xlab("") + ylab("Choice Proportion") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
+# test
+# ez anova
+ac_anova = ezANOVA(data=eaatb, 
+                   dv = a50_a24,
+                   wid = .(id),
+                   within = .(is_post),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+
+
+# violin plot, ambiguity 74 and 24 difference 
+ggplot(eaatb, aes(x = cond, y = a74_a24, fill = is_post)) + 
+  # geom_violin(size=1) + # trimed
+  geom_violin(trim=FALSE, size=1) + # not trimed
+  # geom_dotplot(binaxis='y', binwidth = 0.03, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray 90", "gray55")) +
+  geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
+  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  scale_y_continuous(limits=c(-1.5, 1.0), breaks = c(-1.5, -1.0,-0.5, 0.0, 0.5, 1.0)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 16, color = "black")) +
+  ggtitle("Difference between choice proportion ambiguity 74 and 24") + xlab("") + ylab("Choice Proportion") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
 ##### Risk and ambiguity attitudes correlation #####
 ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=alpha_t, y=beta_t)) + 
   geom_point() +
@@ -678,3 +733,65 @@ ggplot(eaatbpost[!eaatbpost$cond==0, ], aes(x=alpha_t_increase, y=beta_t_increas
 
 cor.test(eaatbpost$alpha_t_increase[!eaatbpost$cond==0], eaatbpost$beta_t_increase[!eaatbpost$cond==0], 
          method = c("pearson", "kendall", "spearman"))
+
+##### ANOVA by linear model and multiple comparison #####
+
+# construct model
+model1 <- lme(a50_a24 ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
+model1 <- lme(beta_t ~ cond*is_post, random = ~is_post|id, na.action=na.omit, data = eaatb)
+model1 <- lmer(a50_a24 ~ cond*is_post + (1|id), na.action=na.omit, data = eaatb )
+
+anova(model1)
+
+# interpreting interaction, require emmeans package
+# visualize the interaction
+emmip(model1, cond ~ is_post)
+
+# post-hoc comparison of means, require packages emmeans
+model1.emm <- emmeans(model1,  ~ cond:is_post)
+
+emmeans(model1, pairwise ~ cond|is_post)
+
+contrast(model1.emm, method="pairwise", adjust = "bonferroni")
+contrast(model1.emm, method="pairwise")
+
+ic_st <- contrast(model1.emm, interaction=c("consec", "consec"), adjust = "Tukey")
+coef(ic_st) # see the constrast
+
+# interaction contrast - contrast of contrast, ref: https://cran.r-project.org/web/packages/emmeans/vignettes/interactions.html
+ic_st <- contrast(model1.emm, interaction=TRUE)
+coef(ic_st)
+test(ic_st, joint = TRUE)
+
+# simple contrast
+contrast(model1.emm, simple= "cond")
+pairs(model1.emm, simple = "cond", adjust="bonferroni")
+pairs(model1.emm, simple = "cond")
+pairs(model1.emm, simple = "is_post", adjust="bonferroni")
+pairs(model1.emm, simple = "is_post")
+pairs(model1.emm, simple = "each")
+
+summary(glht(model1, emm(pairwise ~ cond:is_post)))
+
+model2 <- lme(a50_a24 ~ cond*is_post, random = ~1|id, na.action=na.omit, data = eaatb)
+
+summary(aov(a50_a24 ~ cond*is_post + Error(id), data = eaatb))
+
+# Anova(model1, type=c("III"))
+# Anova(model1, test.statistics=c("F"))
+# Anova(model1)
+
+anova(model1)
+anova(model2)
+
+summary(model1)
+
+eaatb$inter <- interaction(eaatb$cond, eaatb$is_post, drop=T)
+glht(model1, linfct = mcp(cond="Tukey", is_post = "Tukey")) # all-pair comparisons
+glht(model1, linfct = mcp(inter = "Tukey")) # all-pair comparisons
+
+contrast <- rbind("Cond1 - Cond0" = c(-1, 1 ,0),
+                  "Cond2 - Cond0" = c(-1, 0 ,1),
+                  "Cond3 - Cond2" = c(0, -1, 1))
+
+glht(model1, linfct = mcp(cond=contrast))
