@@ -936,3 +936,20 @@ contrast <- rbind("Cond1 - Cond0" = c(-1, 1 ,0),
                   "Cond3 - Cond2" = c(0, -1, 1))
 
 glht(model1, linfct = mcp(cond=contrast))
+##### Model fitting quality comparing groups ######
+
+# violin plot
+ggplot(eaatb,aes(x=cond, y=r2, fill=is_post)) + 
+  geom_violin(trim=FALSE, size = 1) +
+  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  ggtitle("Constrained fitting Pseudo R2")
+
+# bar plot
+data_sum = data_summary(eaatb, "r2", c("is_post", "cond"))
+
+ggplot(data_sum,aes(x=cond, y=r2, fill=is_post)) + 
+  geom_bar(stat="identity", position=position_dodge()) +
+  geom_errorbar(aes(ymin=r2-sd, ymax=r2+sd), width=0.2, position=position_dodge(0.9)) +
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  ggtitle("Constrained fitting Pseudo R2")
