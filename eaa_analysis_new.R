@@ -62,17 +62,25 @@ data_meanstd <- function(x) {
   return(c(y=m,ymin=ymin,ymax=ymax))
 }
 
+data_meanse <- function(x) {
+  # Function to produce summary statistics (mean and +/- sd)
+  m <- mean(x)
+  ymin <- m-sd(x)/sqrt(length(x))
+  ymax <- m+sd(x)/sqrt(length(x))
+  return(c(y=m,ymin=ymin,ymax=ymax))
+}
+
 ##### Load and select data ####
 
 path = "D:/Ruonan/Projects in the lab/Ellen Ambig Avers/Data"
 setwd(path)
 
-load("feedback_all_03142019.rda")
+load("feedback_all_03232019.rda")
 
 # rename
 eaatb = all
 
-# Subject list to exclude
+ # Subject list to exclude
 exclude_riskOnly = c(1271, 1518, 1690, 1860, 2503, 2506, 2507, 2522, 2527, 2528, 2531,
                      2563, 2570, 2575, 1547, 1689, 1858, 2526, 2534, 2544, 2574, 2579)
 
@@ -117,8 +125,31 @@ sum(is.element(eaatb$id[eaatb$cond == 0], id_out))
 ##### Descriptive statistics #####
 # Pre intervention by group
 describeBy(eaatbpre, group = eaatbpre$cond)
+des <- describeBy(eaatbpre$a_r50, group = eaatbpre$cond)
+print(des, digits = 4)
+
+des <- describeBy(eaatbpre$a, group = eaatbpre$cond)
+print(des, digits = 4)
+
+des <- describeBy(eaatbpre$a_increase, group = eaatbpre$cond)
+print(des, digits = 4)
+
+des <- describeBy(eaatbpre$a50_a24, group = eaatbpre$cond)
+print(des, digits = 4)
+
+
+des <- describeBy(eaatbpre$a74_a24, group = eaatbpre$cond)
+print(des, digits = 4)
+
 describeBy(eaatbpre$ep_score, group = eaatbpre$cond)
+eaatb$gender <- as.factor(eaatb$gender)
+describeBy(eaatbpre$gender, group = eaatbpre$cond)
+describeBy(eaatbpre$age, group = eaatbpre$cond)
+
 describe(eaatbpre)
+des <- describe(eaatbpre$a_r50)
+print(des, digits=4)
+
 t.test(eaatbpre$a,mu=1)
 t.test(eaatbpre$a_r50, mu=0)
 t.test(eaatbpre$r,mu=0.75)
@@ -128,6 +159,15 @@ t.test(eaatbpre$beta_t,mu=0)
 # Post intervention by group
 describeBy(eaatbpost, group = eaatbpost$cond)
 describe(eaatbpost)
+
+des <- describeBy(eaatbpost$a50_a24, group = eaatbpost$cond)
+print(des, digits = 4)
+
+des <- describeBy(eaatbpost$a, group = eaatbpost$cond)
+print(des, digits = 4)
+
+des <- describeBy(eaatbpost$a74_a24, group = eaatbpost$cond)
+print(des, digits = 4)
 
 t.test(eaatbpost$a[eaatbpost$cond==1],mu=1)
 t.test(eaatbpost$a[eaatbpost$cond==2],mu=1)
@@ -153,26 +193,131 @@ p.adjust(p,
          method = c("holm"),
          n = length(p))
 
+# Mann-Whitney test, reference: http://rcompanion.org/handbook/F_04.html ####
+aACNC = eaatb[(eaatb$cond == 1 | eaatb$cond == 2) & eaatb$is_post==1 & eaatb$is_excluded==0,]
+wil = wilcox.test(a_r50~cond, data = aACNC, paired=FALSE)
+wil$statistic
+wil$p.value
+qnorm(wil$p.value)
+
+wilcox.test(a_increase~cond, data = aACNC)
+
+# post
+aAC = eaatb[eaatb$cond == 1 & eaatb$is_post==1 & eaatb$is_excluded==0,]
+wil = wilcox.test(aAC$a, mu = 1, alternative = "two.sided")
+wil$p.value
+qnorm(wil$p.value)
+
+# pre all
+wil = wilcox.test(eaatb$a[eaatb$is_post==0 & eaatb$is_excluded==0],
+                  mu = 1, alternative = "two.sided")
+wil$statistic
+wil$p.value
+qnorm(wil$p.value)
+
+# pre all model based ambiguity
+wil = wilcox.test(eaatb$a_r50[eaatb$is_post==0 & eaatb$is_excluded==0],
+                  mu = 0, alternative = "two.sided")
+wil$statistic
+wil$p.value
+qnorm(wil$p.value)
+
+# NC
+aNC = eaatb[eaatb$cond == 2 & eaatb$is_post==1 & eaatb$is_excluded==0,]
+wil = wilcox.test(aNC$a, mu = 1, alternative = "two.sided")
+wil$p.value
+qnorm(wil$p.value)
+
 
 ##### Investigate risky choices #####
  
 # violin plot
 ggplot(eaatb, aes(x = cond, y = r, fill = is_post)) + 
   # geom_violin(size=1) + # trimed
-  geom_violin(trim=FALSE, size=1) + # not trimed
-  geom_dotplot(binaxis='y', binwidth = 0.035, stackdir='center',position=position_dodge(0.9)) + # add dots
-  scale_fill_manual(values = c("gray 90", "gray55")) +
-  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
-  # geom_boxplot(width = 0.1) + # add box plot
+  geom_violin(trim=TRUE) + # not trimed
+  # geom_dotplot(binaxis='y', binwidth = 0.035, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray55", "white")) +
+  # stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  geom_boxplot(width = 0.1, position = position_dodge((0.9))) + # add box plot
   scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
-  scale_y_continuous(limits=c(-0.5, 1.5), breaks = c(-0.5, 0.0, 0.5, 1.0, 1.5)) +
+  scale_y_continuous(limits=c(-.15, 1.15), breaks = c(0.0, .25, 0.5, .75, 1.0)) +
   theme_classic() +
   theme(axis.line = element_line(size = 1)) +
   theme(axis.ticks = element_line(size = 1, color = "black")) +
   theme(axis.text = element_text(size = 16, color = "black")) +
   ggtitle("Risky trials choice proportion") + xlab("") + ylab("Choice Proportion") +
+  theme(axis.title.y=element_text(size = 12)) +
+  theme(axis.title = element_text(size = 14))
+
+
+ggplot(eaatb, aes(x = cond, y = r50, fill = is_post)) + 
+  # geom_violin(size=1) + # trimed
+  geom_violin(trim=TRUE) + # not trimed
+  # geom_dotplot(binaxis='y', binwidth = 0.035, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray55", "white")) +
+  # stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  geom_boxplot(width = 0.1, position = position_dodge((0.9))) + # add box plot
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  # scale_y_continuous(limits=c(-.15, 1.15), breaks = c(0.0, .25, 0.5, .75, 1.0)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 16, color = "black")) +
+  ggtitle("Risky trials choice proportion") + xlab("") + ylab("Choice Proportion") +
+  theme(axis.title.y=element_text(size = 12)) +
+  theme(axis.title = element_text(size = 14))
+
+# increase violin plot
+ggplot(eaatb[eaatb$is_post == 1,], aes(x = cond, y = r_increase)) + 
+  # geom_violin(size=1) + # trimed
+  geom_violin(trim=TRUE, fill = "grey75") + # not trimed
+  # stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red") +
+  geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
+  scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
+  # scale_y_continuous(limits=c(-0.5, 0.75), breaks = c(-.5, -.25, 0.0, .25, 0.5, .75)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Risk choice proportion") + xlab("") + ylab("Choice Proportion") +
   theme(axis.title.y=element_text(size = 14)) +
   theme(axis.title = element_text(size = 16))
+
+# test
+ac_anova = ezANOVA(data=eaatb, 
+                   dv = r,
+                   wid = .(id),
+                   within = .(is_post),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+
+# pre-intervention
+ac_anova = ezANOVA(data=eaatbpre, 
+                   dv = r,
+                   wid = .(id),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+TukeyHSD(ac_anova$aov)
+
+# post-intervention increase
+ac_anova = ezANOVA(data=eaatbpre, 
+                   dv = r_increase,
+                   wid = .(id),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+TukeyHSD(ac_anova$aov)
 
 # histogram
 ggplot(eaatb[eaatb$cond == 0,], aes(x = r, fill = is_post)) +
@@ -187,28 +332,67 @@ ggplot(eaatb[eaatb$cond == 2,], aes(x = r, fill = is_post)) +
   geom_histogram(bins = 20, color = "black", alpha = 0.5) +
   scale_fill_manual(values = c("gray 100", "gray20"))
 
-##### Investigate ambigous choices #####
+##### Investigate ambiguous choices #####
+
+# test
+ac_anova = ezANOVA(data=eaatb, 
+                   dv = a,
+                   wid = .(id),
+                   within = .(is_post),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+
+# pre-intervention
+ac_anova = ezANOVA(data=eaatbpre, 
+                   dv = a,
+                   wid = .(id),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+TukeyHSD(ac_anova$aov)
+
+# post-intervention increase
+ac_anova = ezANOVA(data=eaatbpre, 
+                   dv = a_increase,
+                   wid = .(id),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+TukeyHSD(ac_anova$aov)
 
 # histogram
 ggplot(eaatb[eaatb$cond == 0,], aes(x = a, fill = is_post)) +
-  geom_histogram(bins = 30, color = "black", alpha = 0.7, position = "identity") +
-  scale_fill_grey(start = 0.3, end = 1) +
+  #geom_histogram(bins = 30, color = "black", alpha = 0.3, position = "identity") +
+  geom_density(alpha = 0.3, color =  "black") +
+  #scale_fill_grey(start = 0.3, end = 1) +
   scale_x_continuous(limits = c(-0.2, 1.2), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
   scale_y_continuous(limits = c(0, 12)) +
   theme_classic()
 
 ggplot(eaatb[eaatb$cond == 1,], aes(x = a, fill = is_post, color = is_post)) +
   # scale_fill_manual(values = c("white", "gray20")) +
-  scale_fill_grey(start = 0.3, end = 1) +
-  geom_histogram(bins = 30, color = "black", alpha = 0.7, position = "identity") +
+  #scale_fill_grey(start = 0.3, end = 1) +
+  geom_histogram(bins = 30, color = "black", alpha = 0.2, position = "identity") +
+  geom_density(alpha = 0, size = 1) +
   scale_x_continuous(limits = c(-0.2, 1.2), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
   scale_y_continuous(limits = c(0, 12)) +
   theme_classic()
   
 
 ggplot(eaatb[eaatb$cond == 2,], aes(x = a, fill = is_post)) +
-  geom_histogram(bins = 30, color = "black", alpha = 0.7, position = "identity") +
-  scale_fill_grey(start = 0.3, end = 1) +
+  #geom_histogram(bins = 30, color = "black", alpha = 0.3, position = "identity") +
+  geom_density(alpha = 0.3, color =  "black") +
+  #scale_fill_grey(start = 0.3, end = 1) +
   scale_x_continuous(limits = c(-0.2, 1.2), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
   scale_y_continuous(limits = c(0, 12)) +
   theme_classic()
@@ -499,7 +683,7 @@ TukeyHSD(ac_anova$aov)
 
 ##### Investigate ep score #####
 # bar graph
-data_sum = data_summary(eaatb[eaatb$is_post == 0,],
+data_sum = data_summary(eaatbpost,
                         varname = "ep_score",
                         groupnames = c("cond"))
 
@@ -511,7 +695,10 @@ ggplot(data_sum, aes(x = cond, y = ep_score)) +
   theme_classic() +
   theme(axis.line = element_line(size = 1)) +
   theme(axis.ticks = element_line(size = 1, color = "black")) +
-  theme(axis.text = element_text(size = 12, color = "black"))
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Understanding the Ellsberg Paradox") + xlab("") + ylab("Score") +
+  theme(axis.title.y=element_text(size = 18)) +
+  theme(axis.title=element_text(size=12))
 
 # violin plot
 ggplot(eaatb[eaatb$is_post == 0,], aes(x = cond, y = ep_score)) + 
@@ -529,6 +716,17 @@ ggplot(eaatb[eaatb$is_post == 0,], aes(x = cond, y = ep_score)) +
   theme(axis.title.y=element_text(size = 18)) +
   theme(axis.title = element_text(size = 12))
 
+# group comparison ep score
+ac_anova = ezANOVA(data=eaatbpre[!is.nan(eaatbpre$ep_score),], 
+                   dv = ep_score,
+                   wid = .(id),
+                   between = .(cond),
+                   type = 3,
+                   detailed = TRUE,
+                   return_aov = TRUE
+)
+ac_anova
+TukeyHSD(ac_anova$aov)
 
 ##### Investigate constrained alpha, for risk only fitting #####
 
@@ -609,13 +807,13 @@ TukeyHSD(ac_anova$aov)
 # violin plot
 ggplot(eaatb, aes(x = cond, y = a_r50, fill = is_post)) + 
   # geom_violin(size=1) + # trimed
-  geom_violin(trim=FALSE, size=1) + # not trimed
-  geom_dotplot(binaxis='y', binwidth = 0.035, stackdir='center',position=position_dodge(0.9)) + # add dots
-  scale_fill_manual(values = c("gray 90", "gray55")) +
-  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
-  # geom_boxplot(width = 0.1) + # add box plot
+  geom_violin(trim=TRUE) + # not trimed
+  # geom_dotplot(binaxis='y', binwidth = 0.035, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray55", "white")) +
+  # stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
   scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
-  scale_y_continuous(limits=c(-1.0, 0.5), breaks = c(-1.0,-0.5, 0.0, 0.5)) +
+  scale_y_continuous(limits=c(-1, 0.5), breaks = c(-1.0, -0.75, -0.50,-0.25, 0.0, 0.25, 0.5)) +
   theme_classic() +
   theme(axis.line = element_line(size = 1)) +
   theme(axis.ticks = element_line(size = 1, color = "black")) +
@@ -627,11 +825,11 @@ ggplot(eaatb, aes(x = cond, y = a_r50, fill = is_post)) +
 # increase violin plot
 ggplot(eaatb[eaatb$is_post == 1,], aes(x = cond, y = a_r50_increase)) + 
   # geom_violin(size=1) + # trimed
-  geom_violin(trim=FALSE, size=1, fill = "white") + # not trimed
-  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red") +
-  # geom_boxplot(width = 0.1) + # add box plot
+  geom_violin(trim=TRUE, fill = "grey75") + # not trimed
+  # stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red") +
+  geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
   scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
-  scale_y_continuous(limits=c(-0.5, 1.0), breaks = c(-.5, 0.0, 0.5, 1.0)) +
+  scale_y_continuous(limits=c(-0.5, 1), breaks = c(-.5, -.25, 0.0, .25, 0.5, .75, 1)) +
   theme_classic() +
   theme(axis.line = element_line(size = 1)) +
   theme(axis.ticks = element_line(size = 1, color = "black")) +
@@ -684,17 +882,17 @@ TukeyHSD(ac_anova$aov)
 # violin plot, ambiguity 50 and 24 difference 
 ggplot(eaatb, aes(x = cond, y = a50_a24, fill = is_post)) + 
   # geom_violin(size=1) + # trimed
-  geom_violin(trim=FALSE, size=1) + # not trimed
-  geom_dotplot(binaxis='y', binwidth = 0.02, stackdir='center',position=position_dodge(0.9)) + # add dots
-  scale_fill_manual(values = c("gray 90", "gray55")) +
-  # geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
-  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  geom_violin(trim=TRUE) + # not trimed
+  # geom_dotplot(binaxis='y', binwidth = 0.02, stackdir='center',position=position_dodge(0.9)) + # add dots
+  scale_fill_manual(values = c("gray55", "white")) +
+  geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
+  # stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
   scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
-  scale_y_continuous(limits=c(-1.0, 0.5), breaks = c(-1.0,-0.5, 0.0, 0.5)) +
+  scale_y_continuous(limits=c(-1.0, 0.25), breaks = c(-1.0, -.75,-0.5, -.25, 0.0, 0.25)) +
   theme_classic() +
   theme(axis.line = element_line(size = 1)) +
   theme(axis.ticks = element_line(size = 1, color = "black")) +
-  theme(axis.text = element_text(size = 16, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
   ggtitle("Difference between choice proportion ambiguity 50 and 24") + xlab("") + ylab("Choice Proportion") +
   theme(axis.title.y=element_text(size = 14)) +
   theme(axis.title = element_text(size = 16))
@@ -716,17 +914,17 @@ ac_anova
 # violin plot, ambiguity 74 and 24 difference 
 ggplot(eaatb, aes(x = cond, y = a74_a24, fill = is_post)) + 
   # geom_violin(size=1) + # trimed
-  geom_violin(trim=FALSE, size=1) + # not trimed
+  geom_violin(trim=TRUE) + # not trimed
   # geom_dotplot(binaxis='y', binwidth = 0.03, stackdir='center',position=position_dodge(0.9)) + # add dots
-  scale_fill_manual(values = c("gray 90", "gray55")) +
   geom_boxplot(width = 0.1, position = position_dodge(0.9)) + # add box plot
-  stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
+  scale_fill_manual(values = c("gray55", "white")) +
+  #stat_summary(fun.data=data_meanstd, geom="pointrange", color = "red", position = position_dodge(0.9)) +
   scale_x_discrete(limits = c("1", "2", "0"), labels = c("1"="AC", "2" ="NC", "0" = "Control")) +
-  scale_y_continuous(limits=c(-1.5, 1.0), breaks = c(-1.5, -1.0,-0.5, 0.0, 0.5, 1.0)) +
+  scale_y_continuous(limits=c(-1.1, 0.3), breaks = c(-1.0, -.75,-0.5, -.25, 0.0, 0.25)) +
   theme_classic() +
   theme(axis.line = element_line(size = 1)) +
   theme(axis.ticks = element_line(size = 1, color = "black")) +
-  theme(axis.text = element_text(size = 16, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
   ggtitle("Difference between choice proportion ambiguity 74 and 24") + xlab("") + ylab("Choice Proportion") +
   theme(axis.title.y=element_text(size = 14)) +
   theme(axis.title = element_text(size = 16))
@@ -734,7 +932,7 @@ ggplot(eaatb, aes(x = cond, y = a74_a24, fill = is_post)) +
 # test
 # ez anova
 ac_anova = ezANOVA(data=eaatb, 
-                   dv = a70_a24,
+                   dv = a74_a24,
                    wid = .(id),
                    within = .(is_post),
                    between = .(cond),
@@ -743,6 +941,16 @@ ac_anova = ezANOVA(data=eaatb,
                    return_aov = TRUE
 )
 ac_anova
+
+anova_boot = ezBoot(data = eaatb,
+                    dv = a74_a24,
+                    wid = .(id),
+                    within = .(is_post),
+                    between = .(cond),
+                    resample_within = FALSE,
+                    iterations = 1e3,
+                    lmer = FALSE
+                    )
 
 ##### Risk and ambiguity attitudes correlation #####
 
@@ -768,12 +976,34 @@ ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=alpha_t, y=beta_t)) +
   geom_point() +
   theme_classic()
 
+ggplot(eaatbpre, aes(x=a_r50, y=r)) + 
+  geom_point() +
+  theme_classic()
+
+ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=a_r50, y=r)) + 
+  geom_point(size=2) +
+  geom_smooth(method=lm, se=FALSE, linetype="dashed", color = "black") +
+  scale_x_continuous(limits=c(-.8, 0.4), breaks = c( -.8, -.6,-0.4, -.2, 0.0, 0.2, .4)) +
+  scale_y_continuous(limits=c(0, 1.0), breaks = c(0, .2, .4, .6, .8, 1.0)) +
+  theme_classic()+
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Pre-intervention") + xlab("Ambiguity Attitude") + ylab("Risk Attitude") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
+
 ggplot(eaatbpre[!eaatbpre$cond==0 & eaatbpre$beta_t>-4, ], aes(x=alpha_t, y=beta_t)) + 
   geom_point() +
   theme_classic()
 
 cor.test(eaatbpre$alpha_t[!eaatbpost$cond==0], eaatbpre$beta_t[!eaatbpost$cond==0],
          method = c("spearman"))
+cor.test(eaatbpre$a_r50[!eaatbpost$cond==0], eaatbpre$r[!eaatbpost$cond==0],
+         method = c("pearson"))
+cor.test(eaatbpre$a_r50, eaatbpre$r,
+         method = c("pearson"))
 cor.test(eaatbpre$alpha_t[!eaatbpre$cond==0 & eaatbpre$beta_t>-4], 
          eaatbpre$beta_t[!eaatbpre$cond==0 & eaatbpre$beta_t>-4],
          method = c("spearman"))
@@ -783,12 +1013,30 @@ ggplot(eaatbpost[!eaatbpost$cond==0, ], aes(x=alpha_t, y=beta_t)) +
   geom_point() +
   theme_classic()
 
+ggplot(eaatbpost[!eaatbpost$cond==0, ], aes(x=a_r50, y=r)) + 
+  geom_point(size=2) +
+  geom_smooth(method=lm, se=FALSE, linetype="dashed", color = "black") +
+  scale_x_continuous(limits=c(-0.8, 0.4), breaks = c(-.8, -.6,-0.4, -.2, 0.0, 0.2, .4)) +
+  scale_y_continuous(limits=c(0, 1.0), breaks = c(0, .2, .4, .6, .8, 1.0)) +
+  theme_classic()+
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Post-intervention") + xlab("Ambiguity Attitude") + ylab("Risk Attitude") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title.x=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
 ggplot(eaatbpost[!eaatbpost$cond==0 & eaatbpost$beta_t>-4, ], aes(x=alpha_t, y=beta_t)) + 
   geom_point() +
   theme_classic()
 
 cor.test(eaatbpost$alpha_t[!eaatbpost$cond==0], eaatbpost$beta_t[!eaatbpost$cond==0], 
          method = c("spearman"))
+
+cor.test(eaatbpost$a_r50[!eaatbpost$cond==0], eaatbpost$r[!eaatbpost$cond==0], 
+         method = c("pearson"))
+
 cor.test(eaatbpost$alpha_t[!eaatbpost$cond==0 & eaatbpost$beta_t>-4],
          eaatbpost$beta_t[!eaatbpost$cond==0 & eaatbpost$beta_t>-4], 
          method = c("spearman"))
@@ -802,6 +1050,9 @@ postNC = eaatb[!eaatb$cond==0,]
 cocordata <- data.frame("pre_beta_t"=preACNC$beta_t, "pre_alpha_t"=preACNC$alpha_t,
                         "post_beta_t"=postACNC$beta_t, "post_alpha_t"=postACNC$alpha_t)
 
+cocordata <- data.frame("pre_a_r50"=preACNC$a_r50, "pre_r"=preACNC$r,
+                        "post_a_r50"=postACNC$a_r50, "post_r"=postACNC$r)
+
 cocordata$pre_beta_t[cocordata$pre_beta_t < -4] <- NaN
 cocordata$pre_alpha_t[cocordata$pre_beta_t < -4] <- NaN
 
@@ -809,6 +1060,10 @@ cocordata$post_beta_t[cocordata$post_beta_t < -4] <- NaN
 cocordata$post_alpha_t[cocordata$post_beta_t < -4] <- NaN
 
 cocor(~pre_beta_t + pre_alpha_t | post_beta_t + post_alpha_t, cocordata,
+      alternative ="two.sided", test="all",
+      alpha = 0.05, return.htest = FALSE)
+
+cocor(~pre_a_r50 + pre_r | post_a_r50 + post_r, cocordata,
       alternative ="two.sided", test="all",
       alpha = 0.05, return.htest = FALSE)
 
@@ -821,6 +1076,20 @@ ggplot(eaatbpost[!eaatbpost$cond==0 & eaatbpost$beta_t_increase<4, ], aes(x=alph
   geom_point() +
   theme_classic()
 
+ggplot(eaatbpost[!eaatbpost$cond==0, ], aes(x=a_r50_increase, y=r_increase)) + 
+  geom_point(size=2) +
+  geom_smooth(method=lm, se=FALSE, linetype="dashed", color = "black") +
+  scale_x_continuous(limits=c(-.4, 1.0), breaks = c(-0.4, -.2, 0.0, 0.2, .4, .6, .8, 1.0)) +
+  scale_y_continuous(limits=c(-.4, 0.8), breaks = c(-.4, -.2, 0, .2, .4, .6, .8)) +
+  theme_classic()+
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Correlation of change") + xlab("Increase in Ambiguity Attitude") + ylab("Increase in Risk Attitude") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title.x=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
 cor.test(eaatbpost$alpha_t_increase[!eaatbpost$cond==0],
          eaatbpost$beta_t_increase[!eaatbpost$cond==0], 
          method = c("spearman"))
@@ -829,7 +1098,49 @@ cor.test(eaatbpost$alpha_t_increase[!eaatbpost$cond==0 & eaatbpost$beta_t_increa
          eaatbpost$beta_t_increase[!eaatbpost$cond==0 & eaatbpost$beta_t_increase<4], 
          method = c("spearman"))
 
+cor.test(eaatbpost$a_r50_increase[!eaatbpost$cond==0],
+         eaatbpost$r_increase[!eaatbpost$cond==0], 
+         method = c("pearson"))
+
 ##### EP and change correlation #####
+ggplot(eaatbpost[eaatbpost$cond==1, ], aes(x=ep_score, y=a_r50_increase)) + 
+  geom_point(size=2) +
+  geom_smooth(method=lm, se=FALSE, linetype="dashed", color = "black") +
+  # scale_x_continuous(limits=c(-1.0, 0.2), breaks = c(-1, -.8, -.6,-0.4, -.2, 0.0, 0.2)) +
+  scale_y_continuous(limits=c(-0.2, 0.6), breaks = c(-0.2, 0, .2, .4, .6)) +
+  theme_classic()+
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Active Calculation") + xlab("Understanding") + ylab("Increase in Ambiguity Attitude") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title.x=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
+
+cor.test(eaatbpost$ep_score[eaatbpost$cond==1],
+         eaatbpost$a_r50_increase[eaatbpost$cond==1],
+         method = c("pearson"))
+
+ggplot(eaatbpost[eaatbpost$cond==2, ], aes(x=ep_score, y=a_r50_increase)) + 
+  geom_point(size=2) +
+  geom_smooth(method=lm, se=FALSE, linetype="dashed", color = "black") +
+  # scale_x_continuous(limits=c(-1.0, 0.2), breaks = c(-1, -.8, -.6,-0.4, -.2, 0.0, 0.2)) +
+  scale_y_continuous(limits=c(-0.3, 0.6), breaks = c(-0.2, 0, .2, .4, .6)) +
+  theme_classic()+
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black")) +
+  ggtitle("Non-active Calculation") + xlab("Understanding") + ylab("Increase in Ambiguity Attitude") +
+  theme(axis.title.y=element_text(size = 14)) +
+  theme(axis.title.x=element_text(size = 14)) +
+  theme(axis.title = element_text(size = 16))
+
+
+cor.test(eaatbpost$ep_score[eaatbpost$cond==2],
+         eaatbpost$a_r50_increase[eaatbpost$cond==2],
+         method = c("pearson"))
+
 ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=ep_score, y=beta_t)) + 
   geom_point() +
   theme_classic()
@@ -837,9 +1148,6 @@ ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=ep_score, y=beta_t)) +
 cor.test(eaatbpre$alpha_t[!eaatbpost$cond==0], eaatbpre$beta_t[!eaatbpost$cond==0],
          method = c("spearman"))
 
-ggplot(eaatbpre[eaatbpre$cond==1, ], aes(x=ep_score, y=beta_t_increase)) + 
-  geom_point() +
-  theme_classic()
 
 cor.test(eaatbpre$ep_score[eaatbpost$cond==1],
          eaatbpre$beta_t_increase[eaatbpost$cond==1],
@@ -877,19 +1185,34 @@ model1 <- lme(alpha_risk_t ~ cond*is_post, random = ~is_post|id, na.action=na.om
 
 anova(model1)
 
+model2 <- lme(ep_score ~ cond, random = ~1|id, na.action=na.omit, data = eaatbpost)
+model2 <- lme(a_r50_increase ~ cond, random = ~1|id, na.action=na.omit, data = eaatbpost)
+model2 <- lme(r_increase ~ cond, random = ~1|id, na.action=na.omit, data = eaatbpost)
+model2 <- lme(a_increase ~ cond, random = ~1|id, na.action=na.omit, data = eaatbpost)
+
+model2 <- lme(a_r50 ~ cond, random = ~1|id, na.action=na.omit, data = eaatbpre)
+model2 <- lme(r ~ cond, random = ~1|id, na.action=na.omit, data = eaatbpre)
+
+
+anova(model2)
+
+
+
+
 # interpreting interaction, require emmeans package
 # visualize the interaction
 emmip(model1, cond ~ is_post)
 
 # post-hoc comparison of means, require packages emmeans
 model1.emm <- emmeans(model1,  ~ cond:is_post)
+model2.emm <- emmeans(model2,  ~ cond)
 
 emmeans(model1, pairwise ~ cond|is_post)
 
 contrast(model1.emm, method="pairwise", adjust = "bonferroni")
 contrast(model1.emm, method="pairwise")
 
-ic_st <- contrast(model1.emm, interaction=c("consec", "consec"), adjust = "Tukey")
+ic_st <- contrast(model1.emm, interaction=c("consec", "consec"), adjust = "fdr")
 ic_st <- contrast(model1.emm, interaction=c("consec", "consec"))
 ic_st
 coef(ic_st) # see the constrast
@@ -903,9 +1226,12 @@ test(ic_st, joint = TRUE)
 contrast(model1.emm, simple= "cond")
 pairs(model1.emm, simple = "cond", adjust="bonferroni")
 pairs(model1.emm, simple = "cond")
-pairs(model1.emm, simple = "is_post", adjust="bonferroni")
+pairs(model1.emm, simple = "is_post", adjust="fdr")
 pairs(model1.emm, simple = "each")
-contrast(model1.emm, simple = "each")
+contrast(model1.emm, simple = "each", adjust = 'fdr')
+pairs(model1.emm, simple = "each", adjust="fdr")
+contrast(model2.emm, simple = "each")
+pairs(model2.emm, simple = "each", adjust = "fdr")
 
 summary(glht(model1, emm(pairwise ~ cond:is_post)))
 

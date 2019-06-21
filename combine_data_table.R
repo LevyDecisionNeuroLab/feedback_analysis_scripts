@@ -1,5 +1,7 @@
 ##### Packages ####
 library("ggplot2")
+install.packages("xlsx")
+library(xlsx)
 
 ##### Load data ####
 path = "D:/Ruonan/Projects in the lab/Ellen Ambig Avers/Data"
@@ -61,7 +63,7 @@ all$beta_t = - all$beta
 all$alpha_risk_t = all$alpha_risk - 1
 
 # calculate ambiguity trials choice prob based on the modeled risk choice prob
-all$r50 = mean(cbind(all$r50_9.5, all$r50_18, all$r50_34, all$r50_65))
+all$r50 = rowMeans(cbind(all$r50_9.5, all$r50_18, all$r50_34, all$r50_65))
 all$a_r50 = all$a - all$r50
 
 # sort data frame, phase, constrained, or id
@@ -104,4 +106,24 @@ post = all$a_r50_increase[all$is_post == 1]
 plot(pre, post)
 
 # save data frame
-save(all, file = "feedback_all_03142019.rda")
+save(all, file = "feedback_all_03232019.rda")
+
+write.csv(all, file = "check_table.csv")
+
+
+# check 
+eaatb = all
+# select constrained
+eaatb <- eaatb[eaatb$is_excluded == 0 & eaatb$is_constrained == 1,]
+# select unconstrained
+eaatb <- eaatb[eaatb$is_excluded == 0 & eaatb$is_constrained == 0,]
+
+eaatbpre = eaatb[eaatb$is_post == 0,]
+eaatbpost = eaatb[eaatb$is_post == 1,]
+
+plot(eaatbpre$a_r50_increase, eaatbpost$a_r50_increase)
+plot(eaatbpre$r_increase, eaatbpost$r_increase)
+idmatch = data.frame("preid"=eaatbpre$id, "postid"=eaatbpost$id)
+View(idmatch)
+
+plot(eaatbpre$a_r50_increase, eaatbpost$a_r50_increase)
