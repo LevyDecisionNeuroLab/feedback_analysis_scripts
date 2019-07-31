@@ -370,32 +370,44 @@ ac_anova = ezANOVA(data=eaatbpre,
 ac_anova
 TukeyHSD(ac_anova$aov)
 
+transp = 0.7
+
 # histogram
 ggplot(eaatb[eaatb$cond == 0,], aes(x = a, fill = is_post)) +
-  #geom_histogram(bins = 30, color = "black", alpha = 0.3, position = "identity") +
-  geom_density(alpha = 0.3, color =  "black") +
-  #scale_fill_grey(start = 0.3, end = 1) +
+  geom_histogram(bins = 30, linetype="dashed", color = "black", alpha = transp, position = "identity") +
+  geom_density(alpha = transp, color =  "black", size = 1) +
+  scale_fill_grey(start = 0.2, end = 1) +
   scale_x_continuous(limits = c(-0.2, 1.2), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
-  scale_y_continuous(limits = c(0, 12)) +
-  theme_classic()
+  scale_y_continuous(limits = c(0, 12.5), breaks = c(0.0, 2, 4, 6, 8, 10, 12)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black"))
 
-ggplot(eaatb[eaatb$cond == 1,], aes(x = a, fill = is_post, color = is_post)) +
+ggplot(eaatb[eaatb$cond == 1,], aes(x = a, fill = is_post)) +
   # scale_fill_manual(values = c("white", "gray20")) +
-  #scale_fill_grey(start = 0.3, end = 1) +
-  geom_histogram(bins = 30, color = "black", alpha = 0.2, position = "identity") +
-  geom_density(alpha = 0, size = 1) +
+  geom_histogram(bins = 30, linetype = "dashed",color = "black", alpha = transp, position = "identity") +
+  geom_density(alpha = transp, color = "black", size = 1) +
+  scale_fill_grey(start = 0.2, end = 1) +
   scale_x_continuous(limits = c(-0.2, 1.2), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
-  scale_y_continuous(limits = c(0, 12)) +
-  theme_classic()
+  scale_y_continuous(limits = c(0, 12.5), breaks = c(0.0, 2, 4, 6, 8, 10, 12)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black"))
   
 
 ggplot(eaatb[eaatb$cond == 2,], aes(x = a, fill = is_post)) +
-  #geom_histogram(bins = 30, color = "black", alpha = 0.3, position = "identity") +
-  geom_density(alpha = 0.3, color =  "black") +
-  #scale_fill_grey(start = 0.3, end = 1) +
+  # scale_fill_manual(values = c("white", "gray20")) +
+  geom_histogram(bins = 30, linetype = "dashed",color = "black", alpha = transp, position = "identity") +
+  geom_density(alpha = transp, color = "black", size = 1) +
+  scale_fill_grey(start = 0.2, end = 1) +
   scale_x_continuous(limits = c(-0.2, 1.2), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
-  scale_y_continuous(limits = c(0, 12)) +
-  theme_classic()
+  scale_y_continuous(limits = c(0, 12.5), breaks = c(0.0, 2, 4, 6, 8, 10, 12)) +
+  theme_classic() +
+  theme(axis.line = element_line(size = 1)) +
+  theme(axis.ticks = element_line(size = 1, color = "black")) +
+  theme(axis.text = element_text(size = 12, color = "black"))
 
 ##### Investigate constrained alpha #####
 
@@ -1120,7 +1132,7 @@ ggplot(eaatbpost[eaatbpost$cond==1, ], aes(x=ep_score, y=a_r50_increase)) +
 
 cor.test(eaatbpost$ep_score[eaatbpost$cond==1],
          eaatbpost$a_r50_increase[eaatbpost$cond==1],
-         method = c("pearson"))
+         method = c("spearman"))
 
 ggplot(eaatbpost[eaatbpost$cond==2, ], aes(x=ep_score, y=a_r50_increase)) + 
   geom_point(size=2) +
@@ -1139,7 +1151,7 @@ ggplot(eaatbpost[eaatbpost$cond==2, ], aes(x=ep_score, y=a_r50_increase)) +
 
 cor.test(eaatbpost$ep_score[eaatbpost$cond==2],
          eaatbpost$a_r50_increase[eaatbpost$cond==2],
-         method = c("pearson"))
+         method = c("spearman"))
 
 ggplot(eaatbpre[!eaatbpre$cond==0, ], aes(x=ep_score, y=beta_t)) + 
   geom_point() +
