@@ -1,0 +1,247 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# install.packages("lme4")
+library(lme4)
+# install.packages("phia")
+library(phia)
+packageVersion("phia")
+```
+
+
+
+```{r}
+# path = "D:/Ruonan/Projects in the lab/Ellen Ambig Avers/Data"
+path = "/Users/jiaruonan/Documents/Levy Lab/Ellen Ambig Avers/Data"
+
+setwd(path)
+data <- read.csv('feedback_allSubj_trial_choice_12022019.csv')
+group <- read.csv('subject_info.csv')
+
+```
+
+```{r}
+data$id <- as.factor(data$id)
+data$is_post <- as.factor(data$is_post)
+group$id <- as.factor(group$id)
+group$cond <- as.factor(group$cond)
+group$is_excluded <- as.factor(group$is_excluded)
+group$gender <- as.factor(group$gender)
+group$age_scale <- scale(group$age)
+group$ep_score_scale[!is.na(group$ep_score)] <- scale(group$ep_score[!is.na(group$ep_score)])
+
+choice_data <- merge(data, group, by = intersect(colnames(data), colnames(group)))
+
+choice_data$is_risk[choice_data$ambig == 0] <- 1
+choice_data$is_risk[choice_data$ambig != 0] <- 0
+
+choice_data$is_risk <- as.factor(choice_data$is_risk)
+
+colnames(choice_data)
+```
+
+z-scale value, probability, and ambiguity
+```{r}
+prob_unique <- unique(choice_data$prob[choice_data$is_risk == 1])
+ambig_unique <- unique(choice_data$ambig[choice_data$is_risk == 0])
+val_unique <- unique(choice_data$val)
+
+prob_unique_scale <- scale(prob_unique)
+ambig_unique_scale <- scale(ambig_unique)
+val_unique_scale <- scale(val_unique)
+
+# create scaled columns
+choice_data$val_scale <- choice_data$val
+choice_data$prob_scale <- choice_data$prob
+choice_data$ambig_scale <- choice_data$ambig
+
+# replace with scaled values
+for (i in val_unique) {
+  choice_data$val_scale[choice_data$val == i] <- val_unique_scale[val_unique == i]
+}
+
+for (j in prob_unique) {
+  choice_data$prob_scale[choice_data$prob == j] <- prob_unique_scale[prob_unique == j]
+}
+
+for (k in ambig_unique) {
+  choice_data$ambig_scale[choice_data$ambig == k] <- ambig_unique_scale[ambig_unique == k]
+}
+```
+
+
+GLM, risky trials, excluding $5
+```{r}
+# reference: https://cran.r-project.org/web/packages/lme4/vignettes/lmer.pdf
+logit_model <- glmer(choice ~ is_post + cond + is_post*cond + prob_scale + val_scale + ep_score_scale + ep_score_scale*cond + age_scale + gender + (1 + is_post|id),
+                     data = choice_data[choice_data$is_excluded == 0 & !choice_data$choice == 2 & choice_data$is_risk == 1 & !is.na(choice_data$ep_score) & choice_data$val != 5, ],
+                     family = binomial,
+                     control = glmerControl(optimizer = "bobyqa")
+                     )
+  
+print(summary(logit_model), digits = 8)
+```
+
+```{r}
+anova(logit_model)
+# reference: https://cran.r-project.org/web/packages/phia/vignettes/phia.pdf
+testInteractions(logit_model, pairwise=c("is_post","cond"))
+```
+
+GLM, ambiguity, excluding $5
+```{r}
+
+logit_model_amb <- glmer(choice ~ is_post + cond + is_post*cond + ambig_scale + val_scale + ep_score_scale + ep_score_scale*cond + age_scale + gender + (1 + is_post|id),
+                     data = choice_data[choice_data$is_excluded == 0 & !choice_data$choice == 2 & choice_data$is_risk == 0 & !is.na(choice_data$ep_score) & choice_data$val != 5, ],
+                     family = binomial,
+                     control = glmerControl(optimizer = "bobyqa")
+                     ) 
+
+print(summary(logit_model_amb), digits = 6)
+```
+
+```{r}
+anova(logit_model_amb)
+print(testInteractions(logit_model_amb, pairwise=c("is_post","cond")), digit = 6)
+```
+
+Hierarchical Bayesian modelling
+```{r}
+# install.packages("hBayesDM", dependencies=TRUE)
+library(hBayesDM)
+?hBayesDM
+```
+
+```{r}
+remove.packages("rstan")
+if (file.exists(".RData")) file.remove(".RData")
+
+install.packages("rstan", repos = "https://cloud.r-project.org/", dependencies = TRUE)
+```
+
+```{r}
+pkgbuild::has_build_tools(debug = TRUE)
+```
+
+```{r}
+library("rstan")
+```
+
+```{r}
+path = "/Users/jiaruonan/Documents/Levy Lab/Ellen Ambig Avers/Data"
+
+setwd(path)
+data <- read.csv('feedback_allSubj_trial_choice_12022019.csv')
+group <- read.csv('subject_info.csv')
+
+data$id <- as.factor(data$id)
+data$is_post <- as.factor(data$is_post)
+group$id <- as.factor(group$id)
+group$cond <- as.factor(group$cond)
+group$is_excluded <- as.factor(group$is_excluded)
+group$gender <- as.factor(group$gender)
+
+choice_data <- merge(data, group, by = intersect(colnames(data), colnames(group)))
+
+choice_data$is_risk[choice_data$ambig == 0] <- 1
+choice_data$is_risk[choice_data$ambig != 0] <- 0
+
+choice_data$is_risk <- as.factor(choice_data$is_risk)
+
+colnames(choice_data)
+```
+
+
+```{r}
+# Example:
+
+schools_dat <- list(J = 8, 
+                    y = c(28,  8, -3,  7, -1,  1, 18, 12),
+                    sigma = c(15, 10, 16, 11,  9, 11, 10, 18))
+
+fit <- stan(file = 'hbm_feedback.stan', data = schools_dat)
+
+print(fit)
+plot(fit)
+pairs(fit, pars = c("mu", "tau", "lp__"))
+
+la <- extract(fit, permuted = TRUE) # return a list of arrays 
+mu <- la$mu 
+
+### return an array of three dimensions: iterations, chains, parameters 
+a <- extract(fit, permuted = FALSE) 
+
+### use S3 functions on stanfit objects
+a2 <- as.array(fit)
+m <- as.matrix(fit)
+d <- as.data.frame(fit)
+```
+
+
+
+Build model
+```{r}
+subjective_value <- function(prob, ambig, val, alpha, beta){
+  # subjective value
+  sv <- (prob - beta * ambig/2) * val ^ alpha
+  return(sv)
+}
+
+choice_prob <- function(sv_r, sv_v, gamma){
+  # choice prob of lottery
+  pr <- 1 / (1 + exp(gamma * (sv_r - sv_v)))
+  return(pr)
+}
+
+alpha <- function(alpha_0, alpha_g0, alpha_g1, alpha_g2, p, i_g1, i_g2){
+  alpha <- alpha_0 + p_alpha * (alpha_g0 + i_alpha_g1 * alpha_g1 + i_alpha_g2 * alpha_g2)
+  return(alpha)
+}
+
+beta <- function(beta_0, beta_g0, beta_g1, beta_g2, p, i_g1, i_g2){
+  beta <- beta_0 + p_beta * (beta_g0 + i_beta_g1 * beta_g1 + i_beta_g2 * beta_g2)
+  return(beta)
+}
+
+model <- function(alpha_0, alpha_g0, alpha_g1, alpha_g2, beta_0, beta_g0, beta_g1, beta_g2, gamma, p, cond, id, prob, ambig, val, val_fixed, prob_fixed){
+  
+  if(cond == 0){
+    i_g1 <- 0
+    i_g2 <- 0
+  } else if(cond == 1){
+    i_g1 <- 1
+    i_g2 <- 0    
+  } else if(cond == 2){
+    i_g1 <- 0
+    i_g2 <- 1     
+  }
+  
+  alpha <- alpha(alpha_0, alpha_g0, alpha_g1, alpha_g2, p, i_g1, i_g2)
+  beta <- beta(beta_0, beta_g0, beta_g1, beta_g2, p, i_g1, i_g2)
+  
+  sv_ref <- subjective_value(prob_fixed, 0, val_fixed, alpha, beta)
+  sv_lott <- subjective_value(prob, ambig, val, alpha, beta)
+  
+  choice_pr <- choice_prob(sv_ref, sv_lott, gamma)
+  
+  return(chocie_pr)
+}
+
+
+# parameters to be estimated:
+# alpha_0, alpha_g0, alpha_g1, alpha_g2
+# beta_0, beta_g0, beta_g1, beta_g2
+# random effect: id
+
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
