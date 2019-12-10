@@ -127,3 +127,61 @@ idmatch = data.frame("preid"=eaatbpre$id, "postid"=eaatbpost$id)
 View(idmatch)
 
 plot(eaatbpre$a_r50_increase, eaatbpost$a_r50_increase)
+
+
+# combine additional stats: rt, choice with $5 trials included
+path = "D:/Ruonan/Projects in the lab/Ellen Ambig Avers/Data"
+setwd(path)
+
+load("feedback_all_03232019.rda")
+
+
+View(all)
+rt_5in <- read.csv("feedback_AllSubj_rtByUncert_5in_11012019.csv", header = TRUE)
+colnames(rt_5in)
+rt_5in$rt_r_5in <- rowMeans(cbind(rt_5in$rt_r38_5in, rt_5in$rt_r25_5in, rt_5in$rt_r13_5in))
+rt_5in$rt_a_5in <- rowMeans(cbind(rt_5in$rt_a24_5in, rt_5in$rt_a50_5in, rt_5in$rt_a74_5in))
+
+rt_5out <- read.csv("feedback_AllSubj_rtByUncert_5out_11112019.csv", header = TRUE)
+View(rt_5out)
+colnames(rt_5out)
+rt_5out$rt_r_5out <- rowMeans(cbind(rt_5out$rt_r38_5out, rt_5out$rt_r25_5out, rt_5out$rt_r13_5out))
+rt_5out$rt_a_5out <- rowMeans(cbind(rt_5out$rt_a24_5out, rt_5out$rt_a50_5out, rt_5out$rt_a74_5out))
+
+nonpar_5in <- read.csv("feedback_AllSubj_nonparByUncert_5in_11012019.csv", header = TRUE)
+View(nonpar_5in)
+colnames(nonpar_5in)
+nonpar_5in$r_5in <- rowMeans(cbind(nonpar_5in$r38_5in, nonpar_5in$r25_5in, nonpar_5in$r13_5in))
+nonpar_5in$a_5in <- rowMeans(cbind(nonpar_5in$a24_5in, nonpar_5in$a50_5in, nonpar_5in$a74_5in))
+
+# data1 <- merge(rt_5in, rt_5out, by = c("id", "is_post"))
+data1 <- rt_5out
+View(data1)
+
+data2 <- merge(data1, nonpar_5in, by = c("id", "is_post"))
+View(data2)
+
+data2$id <- as.factor(data2$id)
+data2$is_post <- as.factor(data2$is_post)
+
+all1 <- merge(all, data2, by = c("id", "is_post"))
+View(all1)
+
+save(all1, file = "feedback_all_11112019.rda")
+
+eaatb <- all1
+# calculate a_5in_r50
+eaatb$a_5in_r50 <- eaatb$a_5in - eaatb$r50
+eaatb <- eaatb[
+  with(eaatb, order(is_post, is_constrained, id)),
+  ]
+
+a_5in_r50_increase <- eaatb$a_5in_r50[eaatb$is_post == 1] - eaatb$a_5in_r50[eaatb$is_post == 0]
+length(a_5in_r50_increase)
+
+eaatb$a_5in_r50_increase = c(a_5in_r50_increase, a_5in_r50_increase)
+
+plot(as.numeric(eaatb$id[eaatb$is_post == 0]), as.numeric(eaatb$id[eaatb$is_post == 1]))
+
+save(eaatb, file = "feedback_all_1111022019.rda")
+
